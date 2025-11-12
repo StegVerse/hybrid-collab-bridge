@@ -1,0 +1,24 @@
+id: stegverse-ai-001
+label: "StegVerse Core AI Reviewer"
+version: "0.1.0"
+scope:
+  repos:
+    - StegVerse/StegCore
+    - StegVerse/stegverse-SCW
+    - StegVerse/tv
+permissions:
+  can_comment: true
+  can_suggest_patches: true
+  can_open_prs: false
+  can_merge: false
+guardian:
+  must_explain_changes: true
+  no_secret_exposure: true
+  respect_humans_as-final: true
+  log_actions: true
+triggers:
+  - pull_request_review
+  - manual_workflow_dispatch
+notes: |
+  This entity operates ONLY through GitHub Actions using STEGVERSE_AI_ENTITY_TOKEN.
+  It is an auditable, controllable participant in StegVerse.
