@@ -98,10 +98,9 @@ jobs:
           TARGET_REPO="${{ steps.ctx.outputs.target_repo }}"
           PR_NUMBER="${{ steps.ctx.outputs.pr_number }}"
           INSTR="${{ steps.ctx.outputs.instructions }}"
-          DIFF_JSON=${{ steps.diff.outputs.diff_json }}
+          DIFF_CONTENT=$(echo '${{ steps.diff.outputs.diff_json }}' | jq -r '.')
 
-          SYSTEM_PROMPT=$(cat << 'EOF'
-You are "StegVerse-AI-001", an AI entity operating from the StegVerse Hybrid Collaboration Bridge.
+          SYSTEM_PROMPT='You are "StegVerse-AI-001", an AI entity operating from the StegVerse Hybrid Collaboration Bridge.
 
 Guardian rules:
 - Follow StegVerse Guardian principles: security, transparency, verifiability, non-abuse.
@@ -112,39 +111,37 @@ Guardian rules:
   1) Summarize what you see.
   2) List concrete findings (bugs, security, style, missing docs/tests).
   3) Provide actionable suggestions or patch snippets in fenced code blocks.
-- Treat Rigel and human maintainers as final authority.
-EOF
-)
+- Treat Rigel and human maintainers as final authority.'
 
-          BODY=$(cat << EOF
-{
-  "model": "gpt-5-thinking",
-  "input": [
-    { "role": "system", "content": ${SYSTEM_PROMPT@Q} },
-    { "role": "user", "content": "Target repository: ${TARGET_REPO:-none}" },
-    { "role": "user", "content": "PR number: ${PR_NUMBER:-none}" },
-    { "role": "user", "content": "Context (diff or repo info):" },
-    { "role": "user", "content": $DIFF_JSON },
-    { "role": "user", "content": "Instructions: $INSTR" }
-  ],
-  "max_output_tokens": 900,
-  "temperature": 0.2
-}
-EOF
-)
+          REQUEST_BODY=$(jq -n \
+            --arg model "gpt-4o" \
+            --arg system_prompt "$SYSTEM_PROMPT" \
+            --arg target_repo "${TARGET_REPO:-none}" \
+            --arg pr_number "${PR_NUMBER:-none}" \
+            --arg diff_content "$DIFF_CONTENT" \
+            --arg instructions "$INSTR" \
+            '{
+              model: $model,
+              messages: [
+                {role: "system", content: $system_prompt},
+                {role: "user", content: ("Target repository: " + $target_repo)},
+                {role: "user", content: ("PR number: " + $pr_number)},
+                {role: "user", content: "Context (diff or repo info):"},
+                {role: "user", content: $diff_content},
+                {role: "user", content: ("Instructions: " + $instructions)}
+              ],
+              max_tokens: 900,
+              temperature: 0.2
+            }')
 
-          RESPONSE=$(curl -sS https://api.openai.com/v1/responses \
+          RESPONSE=$(curl -sS https://api.openai.com/v1/chat/completions \
             -H "Authorization: Bearer $OPENAI_API_KEY" \
             -H "Content-Type: application/json" \
-            -d "$BODY")
+            -d "$REQUEST_BODY")
 
           echo "$RESPONSE" > response.json
 
-          AI_COMMENT=$(jq -r '
-            .output[0].content[0].text //
-            .choices[0].message.content //
-            "No response from model."
-          ' response.json)
+          AI_COMMENT=$(jq -r '.choices[0].message.content // "No response from model."' response.json)
 
           {
             echo "ai_comment<<EOF"
