@@ -2,7 +2,7 @@ name: StegVerse AI Entity (Bridge)
 
 # 👇 This section MUST be formatted exactly like this
 on:
-  workflow_dispatch:
+  workflow_dispatch: {}
     inputs:
       target_repo:
         description: "Full repo name (e.g. StegVerse/StegCore)"
