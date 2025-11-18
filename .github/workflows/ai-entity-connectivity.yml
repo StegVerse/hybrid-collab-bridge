@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      GH_TOKEN: ${{ secrets.GH_STEGVERSE_AI_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       INSTRUCTIONS: ${{ github.event.inputs.instructions }}
       REPO: ${{ github.repository }}
 
