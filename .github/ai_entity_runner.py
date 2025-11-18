@@ -1,27 +1,17 @@
-"""
-AI Entity Runner for Hybrid-Collab-Bridge
-Now routed through StegTVC Core v1.0
-"""
-
 import os
 import sys
 import json
 import urllib.request
 
-# ---------------------------------------------------------------------
-# Ensure Python can import helper modules from .github directory
-# ---------------------------------------------------------------------
+# Allow importing helper files from .github/
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-if CURRENT_DIR not in sys.path:
-    sys.path.insert(0, CURRENT_DIR)
+sys.path.insert(0, CURRENT_DIR)
 
-# Use our new helper (lives in .github/stegtvc_client.py)
 from stegtvc_client import stegtvc_resolve
-# ---------------------------------------------------------------------
 
 
 def call_github_models(model: str, system: str, user: str, gh_token: str):
-    """Direct call to GitHub Models."""
+    """Direct call to GitHub Models API."""
     url = "https://models.github.ai/inference/chat/completions"
 
     payload = {
@@ -30,14 +20,13 @@ def call_github_models(model: str, system: str, user: str, gh_token: str):
             {"role": "system", "content": system},
             {"role": "user", "content": user},
         ],
-        "max_tokens": 900,
-        "temperature": 0.2,
+        "max_tokens": 800,
+        "temperature": 0.25,
     }
-    data = json.dumps(payload).encode("utf-8")
 
     req = urllib.request.Request(
         url,
-        data=data,
+        data=json.dumps(payload).encode("utf-8"),
         headers={
             "Content-Type": "application/json",
             "Authorization": f"Bearer {gh_token}",
@@ -47,8 +36,7 @@ def call_github_models(model: str, system: str, user: str, gh_token: str):
     )
 
     with urllib.request.urlopen(req, timeout=20) as resp:
-        txt = resp.read().decode("utf-8")
-        return json.loads(txt)
+        return json.loads(resp.read().decode("utf-8"))
 
 
 def main():
@@ -56,60 +44,18 @@ def main():
 
     gh_token = os.getenv("GH_TOKEN")
     if not gh_token:
-        print("❌ GH_TOKEN is missing.")
+        print("❌ GH_TOKEN missing")
         sys.exit(1)
 
-    # -------------------------------------------------------------------
-    # 1. Resolve provider/model from StegTVC
-    # -------------------------------------------------------------------
+    # Step 1 — Resolve provider via StegTVC
     try:
-        print("🔍 Asking StegTVC which provider/model to use...")
+        print("🔍 Resolving model via StegTVC...")
         resolved = stegtvc_resolve(
             use_case="code-review",
             module="hybrid-collab-bridge",
-            importance="normal",
         )
     except Exception as e:
         print(f"❌ StegTVC resolution failed: {e}")
         sys.exit(1)
 
-    provider = resolved["provider"]
-    model = provider["model"]
-    print(f"📡 StegTVC selected model: {model}")
-
-    # -------------------------------------------------------------------
-    # 2. Load AI prompts from environment
-    # -------------------------------------------------------------------
-    system_prompt = os.getenv("SYSTEM_PROMPT", "You are StegVerse-AI-001.")
-    user_prompt = os.getenv("USER_PROMPT", "No specific user instructions.")
-
-    # -------------------------------------------------------------------
-    # 3. Call GitHub Models
-    # -------------------------------------------------------------------
-    try:
-        print("🤖 Calling GitHub Models...")
-        response = call_github_models(
-            model=model,
-            system=system_prompt,
-            user=user_prompt,
-            gh_token=gh_token,
-        )
-    except Exception as e:
-        print(f"❌ GitHub Models error: {e}")
-        sys.exit(1)
-
-    # -------------------------------------------------------------------
-    # 4. Output
-    # -------------------------------------------------------------------
-    try:
-        ai_text = response["choices"][0]["message"]["content"]
-    except Exception:
-        ai_text = json.dumps(response)
-
-    print("\n===== AI OUTPUT =====")
-    print(ai_text)
-    print("=====================")
-
-
-if __name__ == "__main__":
-    main()
+    model = resolved["
