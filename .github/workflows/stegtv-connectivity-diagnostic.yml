@@ -1,0 +1,56 @@
+name: StegTVC Connectivity Diagnostic
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostic:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Hybrid-Collab-Bridge
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run StegTVC connectivity diagnostic
+        run: |
+          python - << 'PY'
+          import os, sys, json
+
+          # Make sure we can import .github helpers
+          from pathlib import Path
+          here = Path(__file__).resolve()
+          root = here.parents[2]
+          sys.path.insert(0, str(root / ".github"))
+
+          try:
+              from stegtvc_client import stegtvc_resolve
+          except Exception as e:
+              print(f"❌ Failed to import stegtvc_client: {e}")
+              sys.exit(1)
+
+          print("=== StegTVC Connectivity Diagnostic ===")
+
+          try:
+              result = stegtvc_resolve(
+                  use_case="connectivity-check",
+                  module="hybrid-collab-bridge",
+                  importance="normal",
+              )
+          except Exception as e:
+              print(f"❌ StegTVC resolution failed: {e}")
+              sys.exit(1)
+
+          print("\n--- StegTVC resolution result ---")
+          print(json.dumps(result, indent=2))
+          print("\n✅ Connectivity diagnostic completed successfully.")
+          PY
