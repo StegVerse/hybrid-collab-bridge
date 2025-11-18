@@ -1,33 +1,27 @@
 name: StegVerse Connectivity Entity (Hybrid-Collab-Bridge)
 
 on:
-  # Desktop “Run workflow” button (still useful later)
+  # Simple, mobile-friendly manual trigger
   workflow_dispatch:
     inputs:
       instructions:
         description: "Task for the Hybrid-Collab-Bridge AI entity"
-        required: false
+        required: true
         default: "Audit and improve connectivity based on stegverse_connectivity.md."
-
-  # Mobile-friendly trigger: comment on ANY issue with /run-connectivity ...
-  issue_comment:
-    types: [created]
 
 permissions:
   contents: write
-  issues: write
 
 jobs:
   connectivity_entity:
-    # If triggered by comment, only run when body contains /run-connectivity
-    if: github.event_name != 'issue_comment' || contains(github.event.comment.body, '/run-connectivity')
     runs-on: ubuntu-latest
 
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      INSTRUCTIONS: ${{ github.event.inputs.instructions }}
       REPO: ${{ github.repository }}
-      # StegTV core config / endpoint for the connectivity entity
-      STEGTVC_URL: "https://raw.githubusercontent.com/StegVerse/StegTVC/main/app/config.py"
+      # StegTVC core config for the connectivity entity (NEW ORG + REPO)
+      STEGTVC_URL: "https://raw.githubusercontent.com/StegVerse-Labs/TVC/main/app/config.py"
 
     steps:
       - name: Checkout repository
@@ -48,26 +42,22 @@ jobs:
       - name: Resolve instructions (dispatch vs comment)
         id: ctx
         run: |
-          if [ "${{ github.event_name }}" = "issue_comment" ]; then
-            BODY="${{ github.event.comment.body }}"
-            # Everything after /run-connectivity becomes the instructions text
-            INSTR=$(echo "$BODY" | sed -n 's#.*\/run-connectivity[[:space:]]*##p')
-            if [ -z "$INSTR" ]; then
-              INSTR="Run connectivity audit using default instructions."
-            fi
-          else
+          EVENT="${{ github.event_name }}"
+          if [ "$EVENT" = "workflow_dispatch" ]; then
             INSTR="${{ github.event.inputs.instructions }}"
-            if [ -z "$INSTR" ]; then
-              INSTR="Run connectivity audit using default instructions."
-            fi
+          else
+            INSTR="Run connectivity_entity with default instructions."
           fi
 
-          echo "INSTRUCTIONS=$INSTR" >> "$GITHUB_ENV"
-          echo "USER_PROMPT=$INSTR" >> "$GITHUB_ENV"
-          echo "Using instructions:"
-          echo "$INSTR"
+          {
+            echo "instructions<<EOF"
+            echo "$INSTR"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
-      - name: Run Hybrid-Collab-Bridge AI entity (GitHub Models)
+      - name: Run Hybrid-Collab-Bridge AI entity (GitHub Models via StegTVC)
+        env:
+          INSTRUCTIONS: ${{ steps.ctx.outputs.instructions }}
         run: |
           python .github/ai_entity_runner.py
 
